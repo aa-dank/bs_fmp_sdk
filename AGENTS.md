@@ -53,6 +53,7 @@ Avoid introducing many nested folders unless they clearly pay for themselves.
 
 ## Development workflow
 - Use `uv` for project setup and dependency management.
+- Use `python-fmrest` as the package dependency. It is imported in code as `fmrest`.
 - Keep the virtual environment and package metadata current.
 - Add typed exceptions early.
 - Prefer tests around behavior that is easy to break:
