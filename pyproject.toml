@@ -6,7 +6,7 @@ build-backend = "hatchling.build"
 name = "bs-fmp-sdk"
 version = "0.1.0"
 description = "Canonical Python SDK for UCSC Business Services FileMaker integrations."
-readme = "research/architecture.md"
+readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
   "python-fmrest>=1.8.0",
