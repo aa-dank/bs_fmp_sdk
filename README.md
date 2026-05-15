@@ -128,7 +128,7 @@ sdk = BusinessServicesFileMakerClient(raw_client)
 
 project = sdk.get_project(project_number=\"1234\")
 contract = sdk.get_contract_for_project(project=project)
-rfis = sdk.find_rfis(contract_id_primary=contract[\"ID_Primary\"])
+rfis = sdk.find_rfis(contract_id_primary=contract[\"id_primary\"])
 ```
 
 Current business methods include:
@@ -141,6 +141,27 @@ Current business methods include:
 - `get_rfi(...)`
 - `create_rfi(...)`
 - `create_rfi_for_project(...)`
+- `extract_spec_section(...)`
+
+## Current business semantics
+Some FileMaker field names are legacy or misleading. For the immediate first pass of this SDK, use these interpretations:
+
+- `Contracts::ProjectNumber_lk`
+  - treat this as the effective contract number for current business use
+- `Contracts::ContractNumber`
+  - do not currently treat this as the canonical business-facing contract number
+- `Submittal::SectionNumber`
+  - think of this as the \"Spec Section\"
+- `SubmittalItems::SubmittalItemNumber`
+  - think of this as the business-facing \"Submittal Number\"
+
+Additional first-pass assumptions:
+- project lookup is primarily by `ProjectNumber`
+- if duplicate project numbers exist, `ProjectName` may be used as an additional filter
+- there should be a single relevant contract per project for current workflows
+- if multiple contracts are found for a project in a single-contract workflow, the SDK should raise an error
+- RFIs are unique by `ID_Contracts` + `RFINumber`
+- higher-level business methods return normalized snake_case keys and include the original FileMaker record under `raw_fields`
 
 ## Current workflow example
 The initial RFI workflow reflects the real relationship chain in the FileMaker app:
@@ -156,7 +177,7 @@ Example:
 result = sdk.create_rfi_for_project(
     project_criteria={\"ProjectNumber\": \"1234\"},
     rfi_data={
-        \"RFINumber\": \"RFI-001\",
+        \"rfi_number\": \"RFI-001\",
         \"Request\": \"Clarify finish at west elevation.\",
     },
 )
@@ -191,6 +212,27 @@ Examples already encoded in the package:
 - `ImportSubmittalReview`
 
 The idea is to centralize these layout choices in one place so downstream projects benefit when they change.
+
+## Submittal note
+The FileMaker submittal model is a little counterintuitive:
+- `Submittal` is effectively a spec-section table
+- `SubmittalItems` contains the actual submitted items to be reviewed
+
+In practice, creating a submittal item means:
+1. derive the spec section from the incoming submittal item number
+2. resolve or create the matching `Submittal` row for `ProjectNumber` + `SectionNumber`
+3. create the `SubmittalItems` row linked through `ID_Submittal`
+
+Current helper for the parsing step:
+
+```python path=null start=null
+spec_section = sdk.extract_spec_section(\"081113.2\")
+# -> \"08 11 13\"
+```
+
+Current uniqueness assumptions:
+- `Submittal`: `ProjectNumber` + `SectionNumber`
+- `SubmittalItems`: `ID_Submittal` + `SubmittalItemNumber`
 
 ## Cross-platform use
 This repository is intended for use from both Windows and Linux environments.

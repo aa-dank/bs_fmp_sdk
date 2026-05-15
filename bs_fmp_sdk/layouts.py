@@ -24,7 +24,9 @@ class ContractFields:
     ID_PRIMARY = "ID_Primary"
     PROJECT_ID = "ID_Projects"
     PROJECT_NUMBER_LOOKUP = "ProjectNumber_lk"
+    EFFECTIVE_CONTRACT_NUMBER = "ProjectNumber_lk"
     CONTRACT_NUMBER = "ContractNumber"
+    LEGACY_CONTRACT_NUMBER = "ContractNumber"
 
 
 class RFIFields:

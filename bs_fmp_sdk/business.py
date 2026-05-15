@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from collections.abc import Mapping
 from typing import Any
 
@@ -19,7 +20,11 @@ class BusinessServicesFileMakerClient:
 
     Public lookup methods are intentionally exposed because they are useful as
     standalone SDK operations in scripts, spreadsheets, and notebooks.
+    Higher-level methods return normalized snake_case keys while preserving the
+    original FileMaker record under `raw_fields`.
     """
+
+    SPEC_SECTION_NUMBER_RE = re.compile(r"(\d{6})")
 
     def __init__(self, client: FileMakerClient) -> None:
         self.client = client
@@ -41,11 +46,12 @@ class BusinessServicesFileMakerClient:
                 ProjectFields.PROJECT_NAME: project_name,
             },
         )
-        return self.client.find_matching(
+        records = self.client.find_matching(
             merged_criteria,
             layout_name=Layouts.PROJECTS,
             limit=limit,
         )
+        return [self._normalize_project_record(record) for record in records]
 
     def get_project(
         self,
@@ -71,21 +77,23 @@ class BusinessServicesFileMakerClient:
         project_id_primary: str | None = None,
         project_number: str | None = None,
         contract_number: str | None = None,
+        raw_contract_number: str | None = None,
         limit: int | None = None,
     ) -> list[dict[str, Any]]:
         merged_criteria = self._merge_criteria(
             criteria,
             {
                 ContractFields.PROJECT_ID: project_id_primary,
-                ContractFields.PROJECT_NUMBER_LOOKUP: project_number,
-                ContractFields.CONTRACT_NUMBER: contract_number,
+                ContractFields.EFFECTIVE_CONTRACT_NUMBER: contract_number or project_number,
+                ContractFields.LEGACY_CONTRACT_NUMBER: raw_contract_number,
             },
         )
-        return self.client.find_matching(
+        records = self.client.find_matching(
             merged_criteria,
             layout_name=Layouts.CONTRACTS,
             limit=limit,
         )
+        return [self._normalize_contract_record(record) for record in records]
 
     def get_contract(
         self,
@@ -94,12 +102,14 @@ class BusinessServicesFileMakerClient:
         project_id_primary: str | None = None,
         project_number: str | None = None,
         contract_number: str | None = None,
+        raw_contract_number: str | None = None,
     ) -> dict[str, Any]:
         records = self.find_contracts(
             criteria=criteria,
             project_id_primary=project_id_primary,
             project_number=project_number,
             contract_number=contract_number,
+            raw_contract_number=raw_contract_number,
             limit=10,
         )
         return self._require_single_result(records, "contract")
@@ -112,10 +122,10 @@ class BusinessServicesFileMakerClient:
         contract_criteria: Mapping[str, Any] | None = None,
     ) -> dict[str, Any]:
         resolved_project = dict(project) if project is not None else self.get_project(criteria=project_criteria)
-        project_id_primary = resolved_project.get(ProjectFields.ID_PRIMARY)
+        project_id_primary = resolved_project.get("id_primary") or resolved_project.get(ProjectFields.ID_PRIMARY)
         if not project_id_primary:
             raise FileMakerValidationError(
-                f"Resolved project is missing required field '{ProjectFields.ID_PRIMARY}'."
+                "Resolved project is missing required field 'id_primary'."
             )
 
         records = self.find_contracts(
@@ -140,11 +150,12 @@ class BusinessServicesFileMakerClient:
                 RFIFields.RFI_NUMBER: rfi_number,
             },
         )
-        return self.client.find_matching(
+        records = self.client.find_matching(
             merged_criteria,
             layout_name=Layouts.RFIS,
             limit=limit,
         )
+        return [self._normalize_rfi_record(record) for record in records]
 
     def get_rfi(
         self,
@@ -168,17 +179,22 @@ class BusinessServicesFileMakerClient:
         allow_duplicate: bool = False,
     ) -> Any:
         payload = dict(rfi_data)
-        contract_id_primary = payload.get(RFIFields.CONTRACT_ID)
-        rfi_number = payload.get(RFIFields.RFI_NUMBER)
+        contract_id_primary = payload.get("contract_id_primary", payload.get(RFIFields.CONTRACT_ID))
+        rfi_number = payload.get("rfi_number", payload.get(RFIFields.RFI_NUMBER))
 
         if not contract_id_primary:
             raise FileMakerValidationError(
-                f"RFI payload must include '{RFIFields.CONTRACT_ID}'."
+                "RFI payload must include 'contract_id_primary'."
             )
         if not rfi_number:
             raise FileMakerValidationError(
-                f"RFI payload must include '{RFIFields.RFI_NUMBER}'."
+                "RFI payload must include 'rfi_number'."
             )
+
+        payload[RFIFields.CONTRACT_ID] = contract_id_primary
+        payload[RFIFields.RFI_NUMBER] = rfi_number
+        payload.pop("contract_id_primary", None)
+        payload.pop("rfi_number", None)
 
         if not allow_duplicate:
             existing = self.find_rfis(
@@ -206,15 +222,54 @@ class BusinessServicesFileMakerClient:
             contract_criteria=contract_criteria,
         )
 
-        contract_id_primary = resolved_contract.get(ContractFields.ID_PRIMARY)
+        contract_id_primary = resolved_contract.get("id_primary") or resolved_contract.get(ContractFields.ID_PRIMARY)
         if not contract_id_primary:
             raise FileMakerValidationError(
-                f"Resolved contract is missing required field '{ContractFields.ID_PRIMARY}'."
+                "Resolved contract is missing required field 'id_primary'."
             )
 
         payload = dict(rfi_data)
-        payload[RFIFields.CONTRACT_ID] = contract_id_primary
+        payload["contract_id_primary"] = contract_id_primary
         return self.create_rfi(payload, allow_duplicate=False)
+
+    @classmethod
+    def extract_spec_section(cls, submittal_item_number: str) -> str:
+        match = cls.SPEC_SECTION_NUMBER_RE.search(submittal_item_number or "")
+        if not match:
+            raise FileMakerValidationError(
+                "Submittal item number must contain a six-digit spec section."
+            )
+
+        digits = match.group(1)
+        return f"{digits[:2]} {digits[2:4]} {digits[4:6]}"
+
+    @staticmethod
+    def _normalize_project_record(record: Mapping[str, Any]) -> dict[str, Any]:
+        return {
+            "id_primary": record.get(ProjectFields.ID_PRIMARY),
+            "project_number": record.get(ProjectFields.PROJECT_NUMBER),
+            "project_name": record.get(ProjectFields.PROJECT_NAME),
+            "raw_fields": dict(record),
+        }
+
+    @staticmethod
+    def _normalize_contract_record(record: Mapping[str, Any]) -> dict[str, Any]:
+        return {
+            "id_primary": record.get(ContractFields.ID_PRIMARY),
+            "project_id_primary": record.get(ContractFields.PROJECT_ID),
+            "contract_number": record.get(ContractFields.EFFECTIVE_CONTRACT_NUMBER),
+            "legacy_contract_number": record.get(ContractFields.LEGACY_CONTRACT_NUMBER),
+            "raw_fields": dict(record),
+        }
+
+    @staticmethod
+    def _normalize_rfi_record(record: Mapping[str, Any]) -> dict[str, Any]:
+        return {
+            "id_primary": record.get(RFIFields.ID_PRIMARY),
+            "contract_id_primary": record.get(RFIFields.CONTRACT_ID),
+            "rfi_number": record.get(RFIFields.RFI_NUMBER),
+            "raw_fields": dict(record),
+        }
 
     @staticmethod
     def _merge_criteria(
