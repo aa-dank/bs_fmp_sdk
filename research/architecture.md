@@ -44,6 +44,31 @@ Responsible for:
 - create/update flows for supported entities
 - opinionated convenience methods used by downstream apps
 
+### CLI/tooling layer
+The SDK now includes a small JSON CLI wrapper in `bs_fmp_sdk/cli.py`.
+
+Purpose:
+- give Codex and local scripts a deterministic command surface
+- keep FileMaker access routed through the SDK instead of ad hoc scripts
+- make dry-run write previews easy before any live mutation
+- return structured JSON for both success and failure
+
+Current command families:
+- connectivity: `ping`
+- lookups: `find-projects`, `get-project`, `find-contracts`, `find-rfis`
+- writes: `create-rfi`, `create-rfi-for-project`
+
+Design notes:
+- dry-run write previews should not require credentials
+- committed writes and live lookups should load normal `.env` config
+- commands should remain thin wrappers around SDK methods, not a second business layer
+- future Codex MCP/plugin tools can wrap this CLI or import the SDK directly
+
+### Codex skill layer
+A local Codex skill named `bs-filemaker` documents how agents should use this SDK, where the DDR/reference files live, and what approval rules apply before FileMaker writes.
+
+Keep durable domain semantics in this repo first. The skill should point back here rather than becoming a competing source of truth.
+
 ## Things to avoid early
 - exhaustive schema modeling
 - code generation from the full design report

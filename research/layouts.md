@@ -64,3 +64,31 @@ Practical implication:
 - if a layout changes, update this project so downstream projects inherit the fix
 - where business-facing field semantics are confusing, prefer documenting the current best interpretation here rather than silently encoding assumptions in code
 - where legacy field names are misleading, prefer exposing clearer business terminology in higher-level SDK methods and docs
+
+## Database design report usage
+Latest inspected DDR path:
+
+`N:\PPDO\BS\Records Department\Sys Admin\Filemaker\database_design_reports\20260406`
+
+Useful files:
+- `Summary.html`
+- `index.pdf`
+- `UCPPC.pdf`
+- `UCPPC_ddr\UCPPC.html`
+
+The main DDR HTML is large and noisy. Prefer targeted `rg` searches rather than reading it wholesale.
+
+Good search terms for current scope:
+- `ImportProjects`
+- `ImportContracts`
+- `ImportRFILog`
+- `RFILog`
+- `RFINumber`
+- `ID_Contracts`
+- `ProjectNumber_lk`
+
+Observed in the 20260406 DDR:
+- `ImportProjects`, `ImportContracts`, and `ImportRFILog` exist.
+- `ImportRFILog` is based on `RFILog`.
+- `rfilog_table`, `RFI Status`, `RFI Detail`, and `RFI Log Tab` also target `RFILog`, but should not be preferred over `ImportRFILog` for SDK workflows unless a specific use case requires them.
+- The DDR confirms `RFILog` and related RFI layouts are modifiable in relevant privilege/layout sections, but write behavior should still be validated through the SDK and live account permissions.

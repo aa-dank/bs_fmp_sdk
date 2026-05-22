@@ -13,6 +13,9 @@ dependencies = [
   "python-dotenv>=1.0.1",
 ]
 
+[project.scripts]
+bs-fmp = "bs_fmp_sdk.cli:main"
+
 [dependency-groups]
 notebooks = [
   "ipykernel>=6.29.5",

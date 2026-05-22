@@ -183,6 +183,25 @@ result = sdk.create_rfi_for_project(
 )
 ```
 
+## JSON CLI wrapper
+The package includes a small JSON-oriented CLI intended for Codex/tool use and repeatable local scripts.
+
+Run commands from the repo using the local virtual environment:
+
+```powershell path=null start=null
+.\.venv\Scripts\python.exe -m bs_fmp_sdk.cli --help
+```
+
+Dry-run write commands do not require credentials:
+
+```powershell path=null start=null
+.\.venv\Scripts\python.exe -m bs_fmp_sdk.cli create-rfi-for-project `
+  --project-criteria '{"ProjectNumber":"1234"}' `
+  --rfi-data '{"rfi_number":"RFI-001","Request":"Clarify finish at west elevation."}'
+```
+
+Live lookups and committed writes use the SDK `.env` configuration. Add `--commit` only after reviewing the resolved project/contract and payload.
+
 ## Error handling
 The package exposes typed exceptions for common failure modes:
 - `FileMakerError`

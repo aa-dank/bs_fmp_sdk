@@ -29,6 +29,17 @@ The business layer should support common recurring tasks such as:
 - submittal creation/update flows
 - forthcoming RFI workflows
 
+### Codex/tool usage
+Codex should use the SDK through the JSON CLI or a future MCP/plugin tool rather than inventing one-off FileMaker scripts.
+
+Initial useful task patterns:
+- extract RFI data from a PDF or email, then stage a dry-run `create-rfi-for-project`
+- resolve project and contract context for research tasks
+- find existing RFIs before proposing a new one
+- use DDR/reference notes only to clarify schema/layout questions, not as a generated code source
+
+For live writes, the agent should show a preview and receive explicit approval before adding `--commit`.
+
 ## Expansion policy
 Before adding new entity support:
 - identify a real downstream use case
