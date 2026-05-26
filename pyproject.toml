@@ -19,6 +19,7 @@ bs-fmp = "bs_fmp_sdk.cli:main"
 [dependency-groups]
 notebooks = [
   "ipykernel>=6.29.5",
+  "pandas",
 ]
 
 [tool.hatch.build.targets.wheel]
