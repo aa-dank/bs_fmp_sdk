@@ -170,6 +170,22 @@ class FileMakerClient:
             **kwargs,
         )
 
+    def delete_record(
+        self,
+        record_id: int | str,
+        *,
+        layout_name: str | None = None,
+        **kwargs: Any,
+    ) -> Any:
+        resolved_layout = self._resolve_layout(layout_name)
+        return self._call(
+            "delete_record",
+            resolved_layout,
+            record_id=int(record_id),
+            request_layout=resolved_layout,
+            **kwargs,
+        )
+
     def find_matching(
         self,
         criteria: Mapping[str, Any],

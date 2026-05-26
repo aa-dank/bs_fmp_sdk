@@ -101,6 +101,17 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     create_project_rfi.add_argument("--commit", action="store_true", help="Actually write to FileMaker.")
 
+    edit_record = subparsers.add_parser("edit-record", help="Edit a FileMaker record by layout and recordId.")
+    edit_record.add_argument("--layout", required=True, help="FileMaker layout name.")
+    edit_record.add_argument("--record-id", required=True, help="FileMaker recordId, not ID_Primary.")
+    edit_record.add_argument("--payload", required=True, help="JSON object with field data to update.")
+    edit_record.add_argument("--commit", action="store_true", help="Actually write to FileMaker.")
+
+    delete_record = subparsers.add_parser("delete-record", help="Delete a FileMaker record by layout and recordId.")
+    delete_record.add_argument("--layout", required=True, help="FileMaker layout name.")
+    delete_record.add_argument("--record-id", required=True, help="FileMaker recordId, not ID_Primary.")
+    delete_record.add_argument("--commit", action="store_true", help="Actually delete from FileMaker.")
+
     return parser
 
 
@@ -115,7 +126,8 @@ def _add_common_lookup_args(
 
 
 def _dispatch(args: argparse.Namespace) -> Any:
-    if args.command in {"create-rfi", "create-rfi-for-project"} and not args.commit:
+    write_commands = {"create-rfi", "create-rfi-for-project", "edit-record", "delete-record"}
+    if args.command in write_commands and not args.commit:
         return _preview_write(args)
 
     raw = FileMakerClient(load_config(args.env_file))
@@ -129,6 +141,8 @@ def _dispatch(args: argparse.Namespace) -> Any:
         "find-rfis": _find_rfis,
         "create-rfi": _create_rfi,
         "create-rfi-for-project": _create_rfi_for_project,
+        "edit-record": _edit_record,
+        "delete-record": _delete_record,
     }
 
     try:
@@ -147,6 +161,30 @@ def _preview_write(args: argparse.Namespace) -> JsonDict:
                 "commit": False,
                 "allow_duplicate": args.allow_duplicate,
                 "payload": payload,
+            },
+        }
+
+    if args.command == "edit-record":
+        payload = _require_json_object(args.payload, "--payload")
+        return {
+            "dry_run": True,
+            "preview": {
+                "operation": "edit-record",
+                "commit": False,
+                "layout": args.layout,
+                "record_id": args.record_id,
+                "payload": payload,
+            },
+        }
+
+    if args.command == "delete-record":
+        return {
+            "dry_run": True,
+            "preview": {
+                "operation": "delete-record",
+                "commit": False,
+                "layout": args.layout,
+                "record_id": args.record_id,
             },
         }
 
@@ -242,6 +280,30 @@ def _create_rfi_for_project(sdk: BusinessServicesFileMakerClient, args: argparse
         contract_criteria=contract_criteria,
         rfi_data=rfi_data,
     )
+    return {"dry_run": False, "preview": preview, "response": response}
+
+
+def _edit_record(sdk: BusinessServicesFileMakerClient, args: argparse.Namespace) -> JsonDict:
+    payload = _require_json_object(args.payload, "--payload")
+    preview = {
+        "operation": "edit-record",
+        "commit": args.commit,
+        "layout": args.layout,
+        "record_id": args.record_id,
+        "payload": payload,
+    }
+    response = sdk.client.edit_record(args.record_id, payload, layout_name=args.layout)
+    return {"dry_run": False, "preview": preview, "response": response}
+
+
+def _delete_record(sdk: BusinessServicesFileMakerClient, args: argparse.Namespace) -> JsonDict:
+    preview = {
+        "operation": "delete-record",
+        "commit": args.commit,
+        "layout": args.layout,
+        "record_id": args.record_id,
+    }
+    response = sdk.client.delete_record(args.record_id, layout_name=args.layout)
     return {"dry_run": False, "preview": preview, "response": response}
 
 
