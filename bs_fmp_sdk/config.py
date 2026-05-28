@@ -9,6 +9,8 @@ from dotenv import load_dotenv
 
 @dataclass(slots=True)
 class FileMakerConfig:
+    """Connection and request settings for the FileMaker Data API."""
+
     host: str
     user: str
     password: str
@@ -21,6 +23,7 @@ class FileMakerConfig:
 
 
 def load_config(env_file: str | Path | None = None) -> FileMakerConfig:
+    """Load FileMaker configuration from environment variables and .env."""
     if env_file is None:
         env_file = Path(__file__).resolve().parent.parent / ".env"
     load_dotenv(dotenv_path=env_file, override=False)
@@ -39,6 +42,7 @@ def load_config(env_file: str | Path | None = None) -> FileMakerConfig:
 
 
 def _require(key: str) -> str:
+    """Return a required environment variable or raise a clear error."""
     value = os.environ.get(key)
     if not value:
         raise RuntimeError(f"Required environment variable '{key}' is not set.")

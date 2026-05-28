@@ -27,6 +27,7 @@ class BusinessServicesFileMakerClient:
     SPEC_SECTION_NUMBER_RE = re.compile(r"(\d{6})")
 
     def __init__(self, client: FileMakerClient) -> None:
+        """Wrap a low-level FileMaker client with business helpers."""
         self.client = client
 
     def find_projects(
@@ -38,6 +39,7 @@ class BusinessServicesFileMakerClient:
         id_primary: str | None = None,
         limit: int | None = None,
     ) -> list[dict[str, Any]]:
+        """Find project records and return normalized project dictionaries."""
         merged_criteria = self._merge_criteria(
             criteria,
             {
@@ -61,6 +63,7 @@ class BusinessServicesFileMakerClient:
         project_name: str | None = None,
         id_primary: str | None = None,
     ) -> dict[str, Any]:
+        """Return exactly one matching project or raise a typed error."""
         records = self.find_projects(
             criteria=criteria,
             project_number=project_number,
@@ -80,6 +83,7 @@ class BusinessServicesFileMakerClient:
         raw_contract_number: str | None = None,
         limit: int | None = None,
     ) -> list[dict[str, Any]]:
+        """Find contract records and return normalized contract dictionaries."""
         merged_criteria = self._merge_criteria(
             criteria,
             {
@@ -104,6 +108,7 @@ class BusinessServicesFileMakerClient:
         contract_number: str | None = None,
         raw_contract_number: str | None = None,
     ) -> dict[str, Any]:
+        """Return exactly one matching contract or raise a typed error."""
         records = self.find_contracts(
             criteria=criteria,
             project_id_primary=project_id_primary,
@@ -121,6 +126,7 @@ class BusinessServicesFileMakerClient:
         project_criteria: Mapping[str, Any] | None = None,
         contract_criteria: Mapping[str, Any] | None = None,
     ) -> dict[str, Any]:
+        """Resolve the single contract associated with a project."""
         resolved_project = dict(project) if project is not None else self.get_project(criteria=project_criteria)
         project_id_primary = resolved_project.get("id_primary") or resolved_project.get(ProjectFields.ID_PRIMARY)
         if not project_id_primary:
@@ -143,6 +149,7 @@ class BusinessServicesFileMakerClient:
         rfi_number: str | None = None,
         limit: int | None = None,
     ) -> list[dict[str, Any]]:
+        """Find RFI records and return normalized RFI dictionaries."""
         merged_criteria = self._merge_criteria(
             criteria,
             {
@@ -164,6 +171,7 @@ class BusinessServicesFileMakerClient:
         contract_id_primary: str | None = None,
         rfi_number: str | None = None,
     ) -> dict[str, Any]:
+        """Return exactly one matching RFI or raise a typed error."""
         records = self.find_rfis(
             criteria=criteria,
             contract_id_primary=contract_id_primary,
@@ -182,6 +190,7 @@ class BusinessServicesFileMakerClient:
         id_primary: str | None = None,
         limit: int | None = None,
     ) -> list[dict[str, Any]]:
+        """Find CAAN records by exact field criteria."""
         merged_criteria = self._merge_criteria(
             criteria,
             {
@@ -207,6 +216,7 @@ class BusinessServicesFileMakerClient:
         description: str | None = None,
         id_primary: str | None = None,
     ) -> dict[str, Any]:
+        """Return exactly one matching CAAN or raise a typed error."""
         records = self.find_caans(
             criteria=criteria,
             caan=caan,
@@ -223,6 +233,7 @@ class BusinessServicesFileMakerClient:
         *,
         limit: int | None = None,
     ) -> list[dict[str, Any]]:
+        """Search CAAN names and descriptions for a text fragment."""
         search_text = search_text.strip()
         if not search_text:
             raise FileMakerValidationError("CAAN search text is required.")
@@ -243,6 +254,7 @@ class BusinessServicesFileMakerClient:
         *,
         allow_duplicate: bool = False,
     ) -> Any:
+        """Create an RFI after validating required fields and duplicates."""
         payload = dict(rfi_data)
         contract_id_primary = payload.get("contract_id_primary", payload.get(RFIFields.CONTRACT_ID))
         rfi_number = payload.get("rfi_number", payload.get(RFIFields.RFI_NUMBER))
@@ -281,6 +293,7 @@ class BusinessServicesFileMakerClient:
         rfi_data: Mapping[str, Any],
         contract_criteria: Mapping[str, Any] | None = None,
     ) -> Any:
+        """Resolve project and contract context, then create an RFI."""
         resolved_project = self.get_project(criteria=project_criteria)
         resolved_contract = self.get_contract_for_project(
             project=resolved_project,
@@ -299,6 +312,7 @@ class BusinessServicesFileMakerClient:
 
     @classmethod
     def extract_spec_section(cls, submittal_item_number: str) -> str:
+        """Extract a six-digit spec section and format it as paired digits."""
         match = cls.SPEC_SECTION_NUMBER_RE.search(submittal_item_number or "")
         if not match:
             raise FileMakerValidationError(
@@ -310,6 +324,7 @@ class BusinessServicesFileMakerClient:
 
     @staticmethod
     def _normalize_project_record(record: Mapping[str, Any]) -> dict[str, Any]:
+        """Map a FileMaker project record into SDK field names."""
         return {
             "id_primary": record.get(ProjectFields.ID_PRIMARY),
             "project_number": record.get(ProjectFields.PROJECT_NUMBER),
@@ -319,6 +334,7 @@ class BusinessServicesFileMakerClient:
 
     @staticmethod
     def _normalize_contract_record(record: Mapping[str, Any]) -> dict[str, Any]:
+        """Map a FileMaker contract record into SDK field names."""
         return {
             "id_primary": record.get(ContractFields.ID_PRIMARY),
             "project_id_primary": record.get(ContractFields.PROJECT_ID),
@@ -329,6 +345,7 @@ class BusinessServicesFileMakerClient:
 
     @staticmethod
     def _normalize_rfi_record(record: Mapping[str, Any]) -> dict[str, Any]:
+        """Map a FileMaker RFI record into SDK field names."""
         return {
             "id_primary": record.get(RFIFields.ID_PRIMARY),
             "contract_id_primary": record.get(RFIFields.CONTRACT_ID),
@@ -338,6 +355,7 @@ class BusinessServicesFileMakerClient:
 
     @staticmethod
     def _normalize_caan_record(record: Mapping[str, Any]) -> dict[str, Any]:
+        """Map a FileMaker CAAN record into SDK field names."""
         return {
             "id_primary": record.get(CAANFields.ID_PRIMARY),
             "caan": record.get(CAANFields.CAAN),
@@ -351,6 +369,7 @@ class BusinessServicesFileMakerClient:
         base: Mapping[str, Any] | None,
         extra: Mapping[str, Any],
     ) -> dict[str, Any]:
+        """Merge caller criteria with named arguments and reject empties."""
         merged = dict(base or {})
         for key, value in extra.items():
             if value is not None:
@@ -364,6 +383,7 @@ class BusinessServicesFileMakerClient:
         records: list[dict[str, Any]],
         label: str,
     ) -> dict[str, Any]:
+        """Return one record, raising typed errors for zero or many."""
         if not records:
             raise FileMakerNotFoundError(f"No matching {label} found.")
         if len(records) > 1:

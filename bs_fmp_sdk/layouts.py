@@ -12,12 +12,16 @@ class Layouts:
 
 
 class ProjectFields:
+    """Field names used by the projects layout."""
+
     ID_PRIMARY = "ID_Primary"
     PROJECT_NUMBER = "ProjectNumber"
     PROJECT_NAME = "ProjectName"
 
 
 class ContractFields:
+    """Field names used by the contracts layout."""
+
     ID_PRIMARY = "ID_Primary"
     PROJECT_ID = "ID_Projects"
     PROJECT_NUMBER_LOOKUP = "ProjectNumber_lk"
@@ -27,12 +31,16 @@ class ContractFields:
 
 
 class RFIFields:
+    """Field names used by the RFI layout."""
+
     ID_PRIMARY = "ID_Primary"
     CONTRACT_ID = "ID_Contracts"
     RFI_NUMBER = "RFINumber"
 
 
 class CAANFields:
+    """Field names used by the CAANs layout."""
+
     ID_PRIMARY = "ID_Primary"
     CAAN = "CAAN"
     NAME = "Name"

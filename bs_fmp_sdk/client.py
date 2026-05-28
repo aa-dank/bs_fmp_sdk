@@ -27,6 +27,7 @@ class FileMakerClient:
     MAX_RETRIES = 3
 
     def __init__(self, config: FileMakerConfig) -> None:
+        """Create a client using environment-backed FileMaker connection settings."""
         self._config = config
         self._server: fmrest.Server | None = None
         warnings.filterwarnings("ignore", category=InsecureRequestWarning)
@@ -34,9 +35,11 @@ class FileMakerClient:
 
     @property
     def default_layout(self) -> str | None:
+        """Return the configured default layout, if one was supplied."""
         return self._config.default_layout
 
     def ping(self, layout_name: str | None = None) -> bool:
+        """Check whether a FileMaker session can be opened for a layout."""
         try:
             self._ensure_server(self._resolve_layout(layout_name))
             return True
@@ -46,6 +49,7 @@ class FileMakerClient:
             return False
 
     def check_layout(self, layout_name: str) -> bool:
+        """Return whether the current credentials can access a layout."""
         try:
             self._ensure_server(layout_name)
             return True
@@ -56,6 +60,7 @@ class FileMakerClient:
             return False
 
     def logout(self) -> None:
+        """Log out of the active FileMaker session, if one exists."""
         if self._server and self._server._token:
             try:
                 self._server.logout()
@@ -64,9 +69,11 @@ class FileMakerClient:
         self._server = None
 
     def __enter__(self) -> "FileMakerClient":
+        """Return this client for use as a context manager."""
         return self
 
     def __exit__(self, *_: Any) -> None:
+        """Log out when leaving a context manager block."""
         self.logout()
 
     def get_records(
@@ -76,6 +83,7 @@ class FileMakerClient:
         limit: int | None = None,
         **kwargs: Any,
     ) -> list[dict[str, Any]]:
+        """Fetch records from a layout using FileMaker's list-records API."""
         resolved_layout = self._resolve_layout(layout_name)
         if limit is None:
             limit = self._config.fetch_limit
@@ -100,6 +108,7 @@ class FileMakerClient:
         sort: Sequence[Mapping[str, str]] | None = None,
         **kwargs: Any,
     ) -> list[dict[str, Any]]:
+        """Run a FileMaker find request and return records as plain dicts."""
         resolved_layout = self._resolve_layout(layout_name)
         if limit is None:
             limit = self._config.fetch_limit
@@ -124,6 +133,7 @@ class FileMakerClient:
         layout_name: str | None = None,
         **kwargs: Any,
     ) -> dict[str, Any] | None:
+        """Fetch one record by FileMaker recordId."""
         resolved_layout = self._resolve_layout(layout_name)
         record = self._call(
             "get_record",
@@ -144,6 +154,7 @@ class FileMakerClient:
         layout_name: str | None = None,
         **kwargs: Any,
     ) -> Any:
+        """Create a record on a layout and return fmrest's response."""
         resolved_layout = self._resolve_layout(layout_name)
         return self._call(
             "create_record",
@@ -160,6 +171,7 @@ class FileMakerClient:
         layout_name: str | None = None,
         **kwargs: Any,
     ) -> Any:
+        """Edit a record by FileMaker recordId and return fmrest's response."""
         resolved_layout = self._resolve_layout(layout_name)
         return self._call(
             "edit_record",
@@ -177,6 +189,7 @@ class FileMakerClient:
         layout_name: str | None = None,
         **kwargs: Any,
     ) -> Any:
+        """Delete a record by FileMaker recordId and return fmrest's response."""
         resolved_layout = self._resolve_layout(layout_name)
         return self._call(
             "delete_record",
@@ -195,6 +208,7 @@ class FileMakerClient:
         sort: Sequence[Mapping[str, str]] | None = None,
         **kwargs: Any,
     ) -> list[dict[str, Any]]:
+        """Find records where each supplied criterion is treated as exact."""
         query = self.build_exact_query(criteria)
         return self.find(
             query,
@@ -206,6 +220,7 @@ class FileMakerClient:
 
     @staticmethod
     def build_exact_query(criteria: Mapping[str, Any]) -> list[dict[str, Any]]:
+        """Convert field criteria into a FileMaker exact-match find query."""
         if not criteria:
             raise ValueError("At least one search criterion is required.")
 
@@ -220,6 +235,7 @@ class FileMakerClient:
         return [query]
 
     def _resolve_layout(self, layout_name: str | None) -> str:
+        """Choose the explicit, configured, or package-default layout."""
         if layout_name:
             return layout_name
         if self._config.default_layout:
@@ -227,6 +243,7 @@ class FileMakerClient:
         return Layouts.PROJECTS
 
     def _ensure_server(self, layout_name: str) -> fmrest.Server:
+        """Create or reuse an authenticated fmrest server for a layout."""
         if self._server is None or self._server.layout != layout_name:
             if self._server is not None and self._server._token:
                 try:
@@ -252,6 +269,7 @@ class FileMakerClient:
         return self._server
 
     def _login(self) -> None:
+        """Log in with retry handling and typed auth/layout errors."""
         if self._server is None:
             raise FileMakerError("Cannot log in before creating the server session.")
 
@@ -292,6 +310,7 @@ class FileMakerClient:
         allow_not_found: bool = False,
         **kwargs: Any,
     ) -> Any:
+        """Call an fmrest method with retry and token-expiration handling."""
         last_exc: Exception | None = None
         for attempt in range(self.MAX_RETRIES):
             try:
@@ -350,10 +369,12 @@ class FileMakerClient:
 
     @staticmethod
     def _foundset_to_dicts(foundset: Any) -> list[dict[str, Any]]:
+        """Convert an fmrest foundset into plain Python dictionaries."""
         return [dict(record) for record in foundset]
 
 
 def _coerce_query_value(value: Any) -> Any:
+    """Coerce a value into a FileMaker exact-match query expression."""
     if isinstance(value, str):
         stripped = value.strip()
         if stripped.startswith(("==", ">=", "<=", ">", "<", "!", "*")):

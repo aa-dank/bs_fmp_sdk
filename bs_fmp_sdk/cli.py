@@ -17,6 +17,7 @@ JsonDict = dict[str, Any]
 
 
 def main(argv: list[str] | None = None) -> int:
+    """Run the JSON-oriented command line wrapper."""
     parser = _build_parser()
     args = parser.parse_args(argv)
 
@@ -40,6 +41,7 @@ def main(argv: list[str] | None = None) -> int:
 
 
 def _build_parser() -> argparse.ArgumentParser:
+    """Build the CLI parser and supported subcommands."""
     parser = argparse.ArgumentParser(
         prog="bs-fmp",
         description="JSON command wrapper for UCSC Business Services FileMaker operations.",
@@ -138,12 +140,14 @@ def _add_common_lookup_args(
     *,
     include_limit: bool = True,
 ) -> None:
+    """Add criteria and optional limit flags shared by lookup commands."""
     parser.add_argument("--criteria", default=None, help="Optional JSON object with raw FileMaker criteria.")
     if include_limit:
         parser.add_argument("--limit", type=int, default=None)
 
 
 def _dispatch(args: argparse.Namespace) -> Any:
+    """Route parsed CLI arguments to the matching command handler."""
     write_commands = {"create-rfi", "create-rfi-for-project", "edit-record", "delete-record"}
     if args.command in write_commands and not args.commit:
         return _preview_write(args)
@@ -173,6 +177,7 @@ def _dispatch(args: argparse.Namespace) -> Any:
 
 
 def _preview_write(args: argparse.Namespace) -> JsonDict:
+    """Return a dry-run preview for write commands without connecting."""
     if args.command == "create-rfi":
         payload = _require_json_object(args.payload, "--payload")
         return {
@@ -225,10 +230,12 @@ def _preview_write(args: argparse.Namespace) -> JsonDict:
 
 
 def _ping(sdk: BusinessServicesFileMakerClient, args: argparse.Namespace) -> JsonDict:
+    """Handle the ping command."""
     return {"connected": sdk.client.ping()}
 
 
 def _find_projects(sdk: BusinessServicesFileMakerClient, args: argparse.Namespace) -> list[JsonDict]:
+    """Handle the find-projects command."""
     return sdk.find_projects(
         criteria=_json_arg(args.criteria),
         project_number=args.project_number,
@@ -239,6 +246,7 @@ def _find_projects(sdk: BusinessServicesFileMakerClient, args: argparse.Namespac
 
 
 def _get_project(sdk: BusinessServicesFileMakerClient, args: argparse.Namespace) -> JsonDict:
+    """Handle the get-project command."""
     return sdk.get_project(
         criteria=_json_arg(args.criteria),
         project_number=args.project_number,
@@ -248,6 +256,7 @@ def _get_project(sdk: BusinessServicesFileMakerClient, args: argparse.Namespace)
 
 
 def _find_contracts(sdk: BusinessServicesFileMakerClient, args: argparse.Namespace) -> list[JsonDict]:
+    """Handle the find-contracts command."""
     return sdk.find_contracts(
         criteria=_json_arg(args.criteria),
         project_id_primary=args.project_id_primary,
@@ -259,6 +268,7 @@ def _find_contracts(sdk: BusinessServicesFileMakerClient, args: argparse.Namespa
 
 
 def _find_rfis(sdk: BusinessServicesFileMakerClient, args: argparse.Namespace) -> list[JsonDict]:
+    """Handle the find-rfis command."""
     return sdk.find_rfis(
         criteria=_json_arg(args.criteria),
         contract_id_primary=args.contract_id_primary,
@@ -268,6 +278,7 @@ def _find_rfis(sdk: BusinessServicesFileMakerClient, args: argparse.Namespace) -
 
 
 def _find_caans(sdk: BusinessServicesFileMakerClient, args: argparse.Namespace) -> list[JsonDict]:
+    """Handle the find-caans command."""
     return sdk.find_caans(
         criteria=_json_arg(args.criteria),
         caan=args.caan,
@@ -279,6 +290,7 @@ def _find_caans(sdk: BusinessServicesFileMakerClient, args: argparse.Namespace) 
 
 
 def _get_caan(sdk: BusinessServicesFileMakerClient, args: argparse.Namespace) -> JsonDict:
+    """Handle the get-caan command."""
     return sdk.get_caan(
         criteria=_json_arg(args.criteria),
         caan=args.caan,
@@ -289,6 +301,7 @@ def _get_caan(sdk: BusinessServicesFileMakerClient, args: argparse.Namespace) ->
 
 
 def _search_caans(sdk: BusinessServicesFileMakerClient, args: argparse.Namespace) -> list[JsonDict]:
+    """Handle the search-caans command."""
     return sdk.search_caans(
         args.search_text,
         limit=args.limit,
@@ -296,6 +309,7 @@ def _search_caans(sdk: BusinessServicesFileMakerClient, args: argparse.Namespace
 
 
 def _create_rfi(sdk: BusinessServicesFileMakerClient, args: argparse.Namespace) -> JsonDict:
+    """Handle the create-rfi command."""
     payload = _require_json_object(args.payload, "--payload")
     preview = {
         "operation": "create-rfi",
@@ -310,6 +324,7 @@ def _create_rfi(sdk: BusinessServicesFileMakerClient, args: argparse.Namespace) 
 
 
 def _create_rfi_for_project(sdk: BusinessServicesFileMakerClient, args: argparse.Namespace) -> JsonDict:
+    """Handle the create-rfi-for-project command."""
     project_criteria = _require_json_object(args.project_criteria, "--project-criteria")
     rfi_data = _require_json_object(args.rfi_data, "--rfi-data")
     contract_criteria = _json_arg(args.contract_criteria)
@@ -333,6 +348,7 @@ def _create_rfi_for_project(sdk: BusinessServicesFileMakerClient, args: argparse
 
 
 def _edit_record(sdk: BusinessServicesFileMakerClient, args: argparse.Namespace) -> JsonDict:
+    """Handle the edit-record command."""
     payload = _require_json_object(args.payload, "--payload")
     preview = {
         "operation": "edit-record",
@@ -346,6 +362,7 @@ def _edit_record(sdk: BusinessServicesFileMakerClient, args: argparse.Namespace)
 
 
 def _delete_record(sdk: BusinessServicesFileMakerClient, args: argparse.Namespace) -> JsonDict:
+    """Handle the delete-record command."""
     preview = {
         "operation": "delete-record",
         "commit": args.commit,
@@ -357,12 +374,14 @@ def _delete_record(sdk: BusinessServicesFileMakerClient, args: argparse.Namespac
 
 
 def _json_arg(value: str | None) -> JsonDict | None:
+    """Parse an optional JSON object argument."""
     if value is None:
         return None
     return _require_json_object(value, "JSON argument")
 
 
 def _require_json_object(value: str, label: str) -> JsonDict:
+    """Parse a JSON string and require the result to be an object."""
     parsed = json.loads(value)
     if not isinstance(parsed, dict):
         raise ValueError(f"{label} must be a JSON object.")
@@ -370,6 +389,7 @@ def _require_json_object(value: str, label: str) -> JsonDict:
 
 
 def _write_json(payload: Mapping[str, Any], *, stream: Any = sys.stdout) -> None:
+    """Write a JSON payload to a stream with stable formatting."""
     json.dump(payload, stream, indent=2, sort_keys=True, default=str)
     stream.write("\n")
 
