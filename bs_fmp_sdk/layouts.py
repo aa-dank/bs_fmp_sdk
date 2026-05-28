@@ -2,16 +2,13 @@ class Layouts:
     """Centralized layout names used by the SDK."""
 
     PROJECTS = "ImportProjects"
-    PROJECTS_RAW = "projects_table"
     CONTRACTS = "ImportContracts"
     RFIS = "ImportRFILog"
-    RFIS_RAW = "rfilog_table"
     SUBMITTALS = "ImportSubmittal"
     SUBMITTAL_ITEMS = "ImportSubmittalItems"
     SUBMITTAL_REVIEW = "ImportSubmittalReview"
     PEOPLE = "ImportPeople"
-    PEOPLE_RAW = "people_table"
-    CAANS = "caan_table"
+    CAANS = "ImportCAANs"
 
 
 class ProjectFields:
@@ -33,3 +30,10 @@ class RFIFields:
     ID_PRIMARY = "ID_Primary"
     CONTRACT_ID = "ID_Contracts"
     RFI_NUMBER = "RFINumber"
+
+
+class CAANFields:
+    ID_PRIMARY = "ID_Primary"
+    CAAN = "CAAN"
+    NAME = "Name"
+    DESCRIPTION = "Description"

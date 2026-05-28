@@ -14,6 +14,7 @@ Initial supported focus:
 - projects
 - contracts
 - RFIs
+- CAANs
 - submittals will follow next
 
 ## Installation
@@ -82,6 +83,7 @@ from bs_fmp_sdk import (
     FileMakerConfig,
     load_config,
     Layouts,
+    CAANFields,
     ProjectFields,
     ContractFields,
     RFIFields,
@@ -129,6 +131,7 @@ sdk = BusinessServicesFileMakerClient(raw_client)
 project = sdk.get_project(project_number=\"1234\")
 contract = sdk.get_contract_for_project(project=project)
 rfis = sdk.find_rfis(contract_id_primary=contract[\"id_primary\"])
+caans = sdk.search_caans(\"classroom\")
 ```
 
 Current business methods include:
@@ -139,6 +142,9 @@ Current business methods include:
 - `get_contract_for_project(...)`
 - `find_rfis(...)`
 - `get_rfi(...)`
+- `find_caans(...)`
+- `get_caan(...)`
+- `search_caans(...)`
 - `create_rfi(...)`
 - `create_rfi_for_project(...)`
 - `extract_spec_section(...)`
@@ -161,6 +167,7 @@ Additional first-pass assumptions:
 - there should be a single relevant contract per project for current workflows
 - if multiple contracts are found for a project in a single-contract workflow, the SDK should raise an error
 - RFIs are unique by `ID_Contracts` + `RFINumber`
+- CAAN exact lookup is by `CAANs::CAAN`; text search checks `CAANs::Name` and `CAANs::Description`
 - higher-level business methods return normalized snake_case keys and include the original FileMaker record under `raw_fields`
 
 ## Current workflow example
@@ -201,6 +208,13 @@ Dry-run write commands do not require credentials:
 ```
 
 Live lookups and committed writes use the SDK `.env` configuration. Add `--commit` only after reviewing the resolved project/contract and payload.
+
+CAAN lookup examples:
+
+```powershell path=null start=null
+.\.venv\Scripts\python.exe -m bs_fmp_sdk.cli find-caans --caan ABC123
+.\.venv\Scripts\python.exe -m bs_fmp_sdk.cli search-caans --search-text classroom
+```
 
 ## Error handling
 The package exposes typed exceptions for common failure modes:

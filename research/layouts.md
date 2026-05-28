@@ -6,14 +6,14 @@ These are expected to be close to 1:1 with their corresponding tables and are th
 
 ## Known layouts already referenced by existing projects
 ### Projects
-- `projects_table`
 - `ImportProjects`
 
 ### CAANs
-- `caan_table`
+- `ImportCAANs`
+- Exact business lookup should target `CAANs::CAAN`.
+- Text search should start with `CAANs::Name` and `CAANs::Description`; avoid broad all-field search until a real use case needs it.
 
 ### People
-- `people_table`
 - `ImportPeople`
 
 ### Contracts
@@ -45,7 +45,6 @@ These are expected to be close to 1:1 with their corresponding tables and are th
 
 ### RFIs
 - `ImportRFILog`
-- `rfilog_table`
 - `RFI Status`
 - RFI uniqueness rule: treat RFIs as unique by `ID_Contracts` + `RFINumber`.
 - `RFINumber` is business-entered and may include revisions, decimals, or other non-uniform formats, but it is still the correct uniqueness key within the contract/project context.
@@ -90,5 +89,5 @@ Good search terms for current scope:
 Observed in the 20260406 DDR:
 - `ImportProjects`, `ImportContracts`, and `ImportRFILog` exist.
 - `ImportRFILog` is based on `RFILog`.
-- `rfilog_table`, `RFI Status`, `RFI Detail`, and `RFI Log Tab` also target `RFILog`, but should not be preferred over `ImportRFILog` for SDK workflows unless a specific use case requires them.
+- `RFI Status`, `RFI Detail`, and `RFI Log Tab` also target `RFILog`, but should not be preferred over `ImportRFILog` for SDK workflows unless a specific use case requires them.
 - The DDR confirms `RFILog` and related RFI layouts are modifiable in relevant privilege/layout sections, but write behavior should still be validated through the SDK and live account permissions.

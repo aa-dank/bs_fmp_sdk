@@ -10,10 +10,11 @@ from .exceptions import (
     FileMakerNotFoundError,
     FileMakerValidationError,
 )
-from .layouts import ContractFields, Layouts, ProjectFields, RFIFields
+from .layouts import CAANFields, ContractFields, Layouts, ProjectFields, RFIFields
 
 __all__ = [
     "BusinessServicesFileMakerClient",
+    "CAANFields",
     "ContractFields",
     "FileMakerAmbiguousResultError",
     "FileMakerAuthError",

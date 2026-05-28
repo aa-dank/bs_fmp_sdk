@@ -79,6 +79,24 @@ def _build_parser() -> argparse.ArgumentParser:
     find_rfis.add_argument("--contract-id-primary")
     find_rfis.add_argument("--rfi-number")
 
+    find_caans = subparsers.add_parser("find-caans", help="Find CAAN records.")
+    _add_common_lookup_args(find_caans)
+    find_caans.add_argument("--caan")
+    find_caans.add_argument("--name")
+    find_caans.add_argument("--description")
+    find_caans.add_argument("--id-primary")
+
+    get_caan = subparsers.add_parser("get-caan", help="Get exactly one CAAN.")
+    _add_common_lookup_args(get_caan, include_limit=False)
+    get_caan.add_argument("--caan")
+    get_caan.add_argument("--name")
+    get_caan.add_argument("--description")
+    get_caan.add_argument("--id-primary")
+
+    search_caans = subparsers.add_parser("search-caans", help="Search CAAN names and descriptions.")
+    search_caans.add_argument("--limit", type=int, default=None)
+    search_caans.add_argument("--search-text", required=True)
+
     create_rfi = subparsers.add_parser("create-rfi", help="Create an RFI by contract ID.")
     create_rfi.add_argument("--payload", required=True, help="JSON object with RFI field data.")
     create_rfi.add_argument("--allow-duplicate", action="store_true")
@@ -139,6 +157,9 @@ def _dispatch(args: argparse.Namespace) -> Any:
         "get-project": _get_project,
         "find-contracts": _find_contracts,
         "find-rfis": _find_rfis,
+        "find-caans": _find_caans,
+        "get-caan": _get_caan,
+        "search-caans": _search_caans,
         "create-rfi": _create_rfi,
         "create-rfi-for-project": _create_rfi_for_project,
         "edit-record": _edit_record,
@@ -242,6 +263,34 @@ def _find_rfis(sdk: BusinessServicesFileMakerClient, args: argparse.Namespace) -
         criteria=_json_arg(args.criteria),
         contract_id_primary=args.contract_id_primary,
         rfi_number=args.rfi_number,
+        limit=args.limit,
+    )
+
+
+def _find_caans(sdk: BusinessServicesFileMakerClient, args: argparse.Namespace) -> list[JsonDict]:
+    return sdk.find_caans(
+        criteria=_json_arg(args.criteria),
+        caan=args.caan,
+        name=args.name,
+        description=args.description,
+        id_primary=args.id_primary,
+        limit=args.limit,
+    )
+
+
+def _get_caan(sdk: BusinessServicesFileMakerClient, args: argparse.Namespace) -> JsonDict:
+    return sdk.get_caan(
+        criteria=_json_arg(args.criteria),
+        caan=args.caan,
+        name=args.name,
+        description=args.description,
+        id_primary=args.id_primary,
+    )
+
+
+def _search_caans(sdk: BusinessServicesFileMakerClient, args: argparse.Namespace) -> list[JsonDict]:
+    return sdk.search_caans(
+        args.search_text,
         limit=args.limit,
     )
 

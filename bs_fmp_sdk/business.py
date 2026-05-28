@@ -11,7 +11,7 @@ from .exceptions import (
     FileMakerNotFoundError,
     FileMakerValidationError,
 )
-from .layouts import ContractFields, Layouts, ProjectFields, RFIFields
+from .layouts import CAANFields, ContractFields, Layouts, ProjectFields, RFIFields
 
 
 class BusinessServicesFileMakerClient:
@@ -172,6 +172,71 @@ class BusinessServicesFileMakerClient:
         )
         return self._require_single_result(records, "RFI")
 
+    def find_caans(
+        self,
+        *,
+        criteria: Mapping[str, Any] | None = None,
+        caan: str | None = None,
+        name: str | None = None,
+        description: str | None = None,
+        id_primary: str | None = None,
+        limit: int | None = None,
+    ) -> list[dict[str, Any]]:
+        merged_criteria = self._merge_criteria(
+            criteria,
+            {
+                CAANFields.ID_PRIMARY: id_primary,
+                CAANFields.CAAN: caan,
+                CAANFields.NAME: name,
+                CAANFields.DESCRIPTION: description,
+            },
+        )
+        records = self.client.find_matching(
+            merged_criteria,
+            layout_name=Layouts.CAANS,
+            limit=limit,
+        )
+        return [self._normalize_caan_record(record) for record in records]
+
+    def get_caan(
+        self,
+        *,
+        criteria: Mapping[str, Any] | None = None,
+        caan: str | None = None,
+        name: str | None = None,
+        description: str | None = None,
+        id_primary: str | None = None,
+    ) -> dict[str, Any]:
+        records = self.find_caans(
+            criteria=criteria,
+            caan=caan,
+            name=name,
+            description=description,
+            id_primary=id_primary,
+            limit=10,
+        )
+        return self._require_single_result(records, "CAAN")
+
+    def search_caans(
+        self,
+        search_text: str,
+        *,
+        limit: int | None = None,
+    ) -> list[dict[str, Any]]:
+        search_text = search_text.strip()
+        if not search_text:
+            raise FileMakerValidationError("CAAN search text is required.")
+
+        records = self.client.find(
+            [
+                {CAANFields.NAME: f"*{search_text}*"},
+                {CAANFields.DESCRIPTION: f"*{search_text}*"},
+            ],
+            layout_name=Layouts.CAANS,
+            limit=limit,
+        )
+        return [self._normalize_caan_record(record) for record in records]
+
     def create_rfi(
         self,
         rfi_data: Mapping[str, Any],
@@ -268,6 +333,16 @@ class BusinessServicesFileMakerClient:
             "id_primary": record.get(RFIFields.ID_PRIMARY),
             "contract_id_primary": record.get(RFIFields.CONTRACT_ID),
             "rfi_number": record.get(RFIFields.RFI_NUMBER),
+            "raw_fields": dict(record),
+        }
+
+    @staticmethod
+    def _normalize_caan_record(record: Mapping[str, Any]) -> dict[str, Any]:
+        return {
+            "id_primary": record.get(CAANFields.ID_PRIMARY),
+            "caan": record.get(CAANFields.CAAN),
+            "name": record.get(CAANFields.NAME),
+            "description": record.get(CAANFields.DESCRIPTION),
             "raw_fields": dict(record),
         }
 
