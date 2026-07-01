@@ -13,6 +13,20 @@ These are expected to be close to 1:1 with their corresponding tables and are th
 - Exact business lookup should target `CAANs::CAAN`.
 - Text search should start with `CAANs::Name` and `CAANs::Description`; avoid broad all-field search until a real use case needs it.
 
+- `ImportCAANs` writable fields observed in the 2026 CAAN fill work include `Name`, `Address`, `Area`, `City`, `Zip`.
+
+### Project CAANs
+- `ImportProjectCAANs`
+- Use this layout to connect CAANs to associated projects.
+- Useful fields observed during the 2026 CAAN fill work:
+  - `CAAN`
+  - `ID_Project`
+  - `ID_Primary`
+- Other plausible layout names such as `ProjectCAANs`, `ProjectCAAN`, `ImportProjectCAAN`, `ImportProjectsCAANs`, and `ProjectsCAANs` may pass a simple layout check but returned layout-missing errors on actual record reads. Prefer `ImportProjectCAANs`.
+- For project context, resolve `ImportProjectCAANs::ID_Project` to `ImportProjects::ID_Primary`.
+- `ImportProjects::CAANAssetNumber` and `ImportProjects::z_UCExport_CAANs` can also be searched for CAAN references, but `ImportProjectCAANs` is the cleaner relationship source.
+- `ImportProjects::z_CAAN_g` was present in sampled project fields but rejected find requests with FileMaker error 960, so do not rely on it for CAAN lookups without retesting.
+
 ### People
 - `ImportPeople`
 
@@ -48,6 +62,11 @@ These are expected to be close to 1:1 with their corresponding tables and are th
 - `RFI Status`
 - RFI uniqueness rule: treat RFIs as unique by `ID_Contracts` + `RFINumber`.
 - `RFINumber` is business-entered and may include revisions, decimals, or other non-uniform formats, but it is still the correct uniqueness key within the contract/project context.
+
+### Warranty deficiencies
+- `ImportWarrDef`
+- Raw/table layout observed as `warranty_defficiency_table`; note the spelling in the layout name.
+- See `research/warranty_deficiencies.md` for field notes and person ID relationships.
 
 ## Design note about fmrest and layouts
 `fmrest.Server` has a default layout associated with the server instance, but major calls can also take a layout argument.
