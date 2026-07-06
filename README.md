@@ -140,12 +140,15 @@ Current business methods include:
 - `find_contracts(...)`
 - `get_contract(...)`
 - `get_contract_for_project(...)`
+- `resolve_project_contract_context(...)`
 - `find_rfis(...)`
 - `get_rfi(...)`
+- `recent_rfis_for_contract(...)`
 - `find_caans(...)`
 - `get_caan(...)`
 - `search_caans(...)`
 - `create_rfi(...)`
+- `preview_rfi_for_project(...)`
 - `create_rfi_for_project(...)`
 - `extract_spec_section(...)`
 

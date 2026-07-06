@@ -76,10 +76,21 @@ def _build_parser() -> argparse.ArgumentParser:
     find_contracts.add_argument("--contract-number")
     find_contracts.add_argument("--raw-contract-number")
 
+    resolve_contract = subparsers.add_parser(
+        "resolve-project-contract",
+        help="Resolve exactly one project and its associated contract.",
+    )
+    resolve_contract.add_argument("--project-criteria", required=True)
+    resolve_contract.add_argument("--contract-criteria", default=None)
+
     find_rfis = subparsers.add_parser("find-rfis", help="Find RFI records.")
     _add_common_lookup_args(find_rfis)
     find_rfis.add_argument("--contract-id-primary")
     find_rfis.add_argument("--rfi-number")
+
+    recent_rfis = subparsers.add_parser("recent-rfis", help="List recent RFIs for a contract.")
+    recent_rfis.add_argument("--contract-id-primary", required=True)
+    recent_rfis.add_argument("--limit", type=int, default=10)
 
     find_caans = subparsers.add_parser("find-caans", help="Find CAAN records.")
     _add_common_lookup_args(find_caans)
@@ -121,6 +132,22 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     create_project_rfi.add_argument("--commit", action="store_true", help="Actually write to FileMaker.")
 
+    preview_project_rfi = subparsers.add_parser(
+        "preview-rfi-for-project",
+        help="Resolve project/contract context and check for duplicate RFIs.",
+    )
+    preview_project_rfi.add_argument(
+        "--project-criteria",
+        required=True,
+        help="JSON object used to resolve exactly one project.",
+    )
+    preview_project_rfi.add_argument("--rfi-data", required=True, help="JSON object with RFI field data.")
+    preview_project_rfi.add_argument(
+        "--contract-criteria",
+        default=None,
+        help="Optional JSON object used while resolving the project contract.",
+    )
+
     edit_record = subparsers.add_parser("edit-record", help="Edit a FileMaker record by layout and recordId.")
     edit_record.add_argument("--layout", required=True, help="FileMaker layout name.")
     edit_record.add_argument("--record-id", required=True, help="FileMaker recordId, not ID_Primary.")
@@ -161,11 +188,14 @@ def _dispatch(args: argparse.Namespace) -> Any:
         "get-project": _get_project,
         "find-contracts": _find_contracts,
         "find-rfis": _find_rfis,
+        "recent-rfis": _recent_rfis,
+        "resolve-project-contract": _resolve_project_contract,
         "find-caans": _find_caans,
         "get-caan": _get_caan,
         "search-caans": _search_caans,
         "create-rfi": _create_rfi,
         "create-rfi-for-project": _create_rfi_for_project,
+        "preview-rfi-for-project": _preview_rfi_for_project,
         "edit-record": _edit_record,
         "delete-record": _delete_record,
     }
@@ -267,6 +297,13 @@ def _find_contracts(sdk: BusinessServicesFileMakerClient, args: argparse.Namespa
     )
 
 
+def _resolve_project_contract(sdk: BusinessServicesFileMakerClient, args: argparse.Namespace) -> JsonDict:
+    """Handle the resolve-project-contract command."""
+    return sdk.resolve_project_contract_context(
+        project_criteria=_require_json_object(args.project_criteria, "--project-criteria"),
+        contract_criteria=_json_arg(args.contract_criteria),
+    )
+
 def _find_rfis(sdk: BusinessServicesFileMakerClient, args: argparse.Namespace) -> list[JsonDict]:
     """Handle the find-rfis command."""
     return sdk.find_rfis(
@@ -276,6 +313,13 @@ def _find_rfis(sdk: BusinessServicesFileMakerClient, args: argparse.Namespace) -
         limit=args.limit,
     )
 
+
+def _recent_rfis(sdk: BusinessServicesFileMakerClient, args: argparse.Namespace) -> list[JsonDict]:
+    """Handle the recent-rfis command."""
+    return sdk.recent_rfis_for_contract(
+        contract_id_primary=args.contract_id_primary,
+        limit=args.limit,
+    )
 
 def _find_caans(sdk: BusinessServicesFileMakerClient, args: argparse.Namespace) -> list[JsonDict]:
     """Handle the find-caans command."""
@@ -346,6 +390,14 @@ def _create_rfi_for_project(sdk: BusinessServicesFileMakerClient, args: argparse
     )
     return {"dry_run": False, "preview": preview, "response": response}
 
+
+def _preview_rfi_for_project(sdk: BusinessServicesFileMakerClient, args: argparse.Namespace) -> JsonDict:
+    """Handle the preview-rfi-for-project command."""
+    return sdk.preview_rfi_for_project(
+        project_criteria=_require_json_object(args.project_criteria, "--project-criteria"),
+        contract_criteria=_json_arg(args.contract_criteria),
+        rfi_data=_require_json_object(args.rfi_data, "--rfi-data"),
+    )
 
 def _edit_record(sdk: BusinessServicesFileMakerClient, args: argparse.Namespace) -> JsonDict:
     """Handle the edit-record command."""

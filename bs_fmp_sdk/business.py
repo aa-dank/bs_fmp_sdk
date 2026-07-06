@@ -141,6 +141,31 @@ class BusinessServicesFileMakerClient:
         )
         return self._require_single_result(records, "contract")
 
+    def resolve_project_contract_context(
+        self,
+        *,
+        project: Mapping[str, Any] | None = None,
+        project_criteria: Mapping[str, Any] | None = None,
+        contract_criteria: Mapping[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Resolve exactly one project and exactly one associated contract."""
+        resolved_project = dict(project) if project is not None else self.get_project(criteria=project_criteria)
+        resolved_contract = self.get_contract_for_project(
+            project=resolved_project,
+            contract_criteria=contract_criteria,
+        )
+        contract_id_primary = resolved_contract.get("id_primary") or resolved_contract.get(ContractFields.ID_PRIMARY)
+        if not contract_id_primary:
+            raise FileMakerValidationError(
+                "Resolved contract is missing required field id_primary."
+            )
+
+        return {
+            "project": resolved_project,
+            "contract": resolved_contract,
+            "contract_id_primary": contract_id_primary,
+        }
+
     def find_rfis(
         self,
         *,
@@ -179,6 +204,21 @@ class BusinessServicesFileMakerClient:
             limit=10,
         )
         return self._require_single_result(records, "RFI")
+
+    def recent_rfis_for_contract(
+        self,
+        *,
+        contract_id_primary: str,
+        limit: int = 10,
+    ) -> list[dict[str, Any]]:
+        """Return recent RFIs for a contract, sorted by RFI number descending."""
+        records = self.client.find(
+            [{RFIFields.CONTRACT_ID: "==" + str(contract_id_primary)}],
+            layout_name=Layouts.RFIS,
+            limit=limit,
+            sort=[{"fieldName": RFIFields.RFI_NUMBER, "sortOrder": "descend"}],
+        )
+        return [self._normalize_rfi_record(record) for record in records]
 
     def find_caans(
         self,
@@ -255,23 +295,9 @@ class BusinessServicesFileMakerClient:
         allow_duplicate: bool = False,
     ) -> Any:
         """Create an RFI after validating required fields and duplicates."""
-        payload = dict(rfi_data)
-        contract_id_primary = payload.get("contract_id_primary", payload.get(RFIFields.CONTRACT_ID))
-        rfi_number = payload.get("rfi_number", payload.get(RFIFields.RFI_NUMBER))
-
-        if not contract_id_primary:
-            raise FileMakerValidationError(
-                "RFI payload must include 'contract_id_primary'."
-            )
-        if not rfi_number:
-            raise FileMakerValidationError(
-                "RFI payload must include 'rfi_number'."
-            )
-
-        payload[RFIFields.CONTRACT_ID] = contract_id_primary
-        payload[RFIFields.RFI_NUMBER] = rfi_number
-        payload.pop("contract_id_primary", None)
-        payload.pop("rfi_number", None)
+        payload = self._build_rfi_payload(rfi_data)
+        contract_id_primary = payload[RFIFields.CONTRACT_ID]
+        rfi_number = payload[RFIFields.RFI_NUMBER]
 
         if not allow_duplicate:
             existing = self.find_rfis(
@@ -281,10 +307,43 @@ class BusinessServicesFileMakerClient:
             )
             if existing:
                 raise FileMakerDuplicateError(
-                    f"An RFI already exists for contract '{contract_id_primary}' with number '{rfi_number}'."
+                    f"An RFI already exists for contract {contract_id_primary!r} with number {rfi_number!r}."
                 )
 
         return self.client.create_record(payload, layout_name=Layouts.RFIS)
+
+    def preview_rfi_for_project(
+        self,
+        *,
+        project_criteria: Mapping[str, Any],
+        rfi_data: Mapping[str, Any],
+        contract_criteria: Mapping[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Resolve RFI context and return the payload and duplicate matches."""
+        context = self.resolve_project_contract_context(
+            project_criteria=project_criteria,
+            contract_criteria=contract_criteria,
+        )
+        payload = self._build_rfi_payload(
+            rfi_data,
+            contract_id_primary=context["contract_id_primary"],
+        )
+        duplicates: list[dict[str, Any]] = []
+        for candidate in self._rfi_number_duplicate_candidates(str(payload[RFIFields.RFI_NUMBER])):
+            duplicates.extend(
+                self.find_rfis(
+                    contract_id_primary=str(context["contract_id_primary"]),
+                    rfi_number=candidate,
+                    limit=5,
+                )
+            )
+
+        return {
+            "project": context["project"],
+            "contract": context["contract"],
+            "duplicates": self._dedupe_records(duplicates),
+            "payload": payload,
+        }
 
     def create_rfi_for_project(
         self,
@@ -294,21 +353,18 @@ class BusinessServicesFileMakerClient:
         contract_criteria: Mapping[str, Any] | None = None,
     ) -> Any:
         """Resolve project and contract context, then create an RFI."""
-        resolved_project = self.get_project(criteria=project_criteria)
-        resolved_contract = self.get_contract_for_project(
-            project=resolved_project,
+        preview = self.preview_rfi_for_project(
+            project_criteria=project_criteria,
+            rfi_data=rfi_data,
             contract_criteria=contract_criteria,
         )
-
-        contract_id_primary = resolved_contract.get("id_primary") or resolved_contract.get(ContractFields.ID_PRIMARY)
-        if not contract_id_primary:
-            raise FileMakerValidationError(
-                "Resolved contract is missing required field 'id_primary'."
+        if preview["duplicates"]:
+            contract_id_primary = preview["payload"][RFIFields.CONTRACT_ID]
+            rfi_number = preview["payload"][RFIFields.RFI_NUMBER]
+            raise FileMakerDuplicateError(
+                f"An RFI already exists for contract {contract_id_primary!r} with number {rfi_number!r}."
             )
-
-        payload = dict(rfi_data)
-        payload["contract_id_primary"] = contract_id_primary
-        return self.create_rfi(payload, allow_duplicate=False)
+        return self.client.create_record(preview["payload"], layout_name=Layouts.RFIS)
 
     @classmethod
     def extract_spec_section(cls, submittal_item_number: str) -> str:
@@ -363,6 +419,62 @@ class BusinessServicesFileMakerClient:
             "description": record.get(CAANFields.DESCRIPTION),
             "raw_fields": dict(record),
         }
+
+    @staticmethod
+    def _build_rfi_payload(
+        rfi_data: Mapping[str, Any],
+        *,
+        contract_id_primary: Any | None = None,
+    ) -> dict[str, Any]:
+        """Normalize caller RFI keys into FileMaker field names."""
+        payload = dict(rfi_data)
+        resolved_contract_id = contract_id_primary or payload.get(
+            "contract_id_primary",
+            payload.get(RFIFields.CONTRACT_ID),
+        )
+        resolved_rfi_number = payload.get(
+            "rfi_number",
+            payload.get(RFIFields.RFI_NUMBER),
+        )
+
+        if not resolved_contract_id:
+            raise FileMakerValidationError(
+                "RFI payload must include contract_id_primary."
+            )
+        if not resolved_rfi_number:
+            raise FileMakerValidationError(
+                "RFI payload must include rfi_number."
+            )
+
+        payload[RFIFields.CONTRACT_ID] = resolved_contract_id
+        payload[RFIFields.RFI_NUMBER] = resolved_rfi_number
+        payload.pop("contract_id_primary", None)
+        payload.pop("rfi_number", None)
+        return payload
+
+    @staticmethod
+    def _rfi_number_duplicate_candidates(rfi_number: str) -> list[str]:
+        """Return exact and leading-zero variants for duplicate checks."""
+        candidates = [rfi_number]
+        stripped = rfi_number.lstrip("0")
+        if stripped and stripped != rfi_number:
+            candidates.append(stripped)
+        if rfi_number.isdigit() and not rfi_number.startswith("0"):
+            candidates.append(rfi_number.zfill(5))
+        return list(dict.fromkeys(candidates))
+
+    @staticmethod
+    def _dedupe_records(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        """Remove duplicate normalized records from multiple lookup passes."""
+        deduped: list[dict[str, Any]] = []
+        seen: set[Any] = set()
+        for record in records:
+            key = record.get("id_primary") or repr(sorted(record.items()))
+            if key in seen:
+                continue
+            seen.add(key)
+            deduped.append(record)
+        return deduped
 
     @staticmethod
     def _merge_criteria(
